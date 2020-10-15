@@ -14,21 +14,29 @@ public:
   std::vector<MEMORY_BASIC_INFORMATION> getRegions(HANDLE hProcess);
 
   template <class dataType>
-  dataType readMemory(HANDLE hProcess, DWORD64 address) {
+  dataType readMemory(HANDLE hProcess, DWORD64 address, SIZE_T *lpRead = NULL) {
     dataType cRead;
-    ReadProcessMemory(hProcess, (LPVOID)address, &cRead, sizeof(dataType), NULL);
+    if (!ReadProcessMemory(hProcess, (LPVOID)address, &cRead, sizeof(dataType), lpRead))
+    {
+      return dataType();
+    }
     return cRead;
   }
 
-  char* readBuffer(HANDLE hProcess, DWORD64 address, SIZE_T size) {
+  char* readBuffer(HANDLE hProcess, DWORD64 address, SIZE_T size, SIZE_T *lpRead = NULL) {
     char* buffer = new char[size];
-    ReadProcessMemory(hProcess, (LPVOID)address, buffer, size, NULL);
+    if (!ReadProcessMemory(hProcess, (LPVOID)address, buffer, size, lpRead))
+    {
+      delete[] buffer;
+      return nullptr;
+    }
     return buffer;
   }
 
-  char readChar(HANDLE hProcess, DWORD64 address) {
+  char readChar(HANDLE hProcess, DWORD64 address, SIZE_T *lpRead = NULL) {
     char value;
-    ReadProcessMemory(hProcess, (LPVOID)address, &value, sizeof(char), NULL);
+    if (!ReadProcessMemory(hProcess, (LPVOID)address, &value, sizeof(char), lpRead))
+      return 0;
     return value;
 	}
 

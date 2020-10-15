@@ -324,70 +324,71 @@ Napi::Value readMemory(const Napi::CallbackInfo& args) {
 
   HANDLE handle = (HANDLE)args[0].As<Napi::Number>().Int64Value();
   DWORD64 address = args[1].As<Napi::Number>().Int64Value();
+  SIZE_T read = 0;
 
   if (!strcmp(dataType, "byte")) {
 
-    unsigned char result = Memory.readMemory<unsigned char>(handle, address);
+    unsigned char result = Memory.readMemory<unsigned char>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "int")) {
 
-    int result = Memory.readMemory<int>(handle, address);
+    int result = Memory.readMemory<int>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "int32")) {
 
-    int32_t result = Memory.readMemory<int32_t>(handle, address);
+    int32_t result = Memory.readMemory<int32_t>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "uint32")) {
 
-    uint32_t result = Memory.readMemory<uint32_t>(handle, address);
+    uint32_t result = Memory.readMemory<uint32_t>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "int64")) {
 
-    int64_t result = Memory.readMemory<int64_t>(handle, address);
+    int64_t result = Memory.readMemory<int64_t>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "uint64")) {
 
-    uint64_t result = Memory.readMemory<uint64_t>(handle, address);
+    uint64_t result = Memory.readMemory<uint64_t>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "dword")) {
 
-    DWORD result = Memory.readMemory<DWORD>(handle, address);
+    DWORD result = Memory.readMemory<DWORD>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "short")) {
 
-    short result = Memory.readMemory<short>(handle, address);
+    short result = Memory.readMemory<short>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "long")) {
 
-    long result = Memory.readMemory<long>(handle, address);
+    long result = Memory.readMemory<long>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "float")) {
 
-    float result = Memory.readMemory<float>(handle, address);
+    float result = Memory.readMemory<float>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "double")) {
 
-    double result = Memory.readMemory<double>(handle, address);
+    double result = Memory.readMemory<double>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "ptr") || !strcmp(dataType, "pointer")) {
 
-    intptr_t result = Memory.readMemory<intptr_t>(handle, address);
+    intptr_t result = Memory.readMemory<intptr_t>(handle, address, &read);
     retVal = Napi::Value::From(env, result);
 
   } else if (!strcmp(dataType, "bool") || !strcmp(dataType, "boolean")) {
 
-    bool result = Memory.readMemory<bool>(handle, address);
+    bool result = Memory.readMemory<bool>(handle, address, &read);
     retVal = Napi::Boolean::New(env, result);
 
   } else if (!strcmp(dataType, "string") || !strcmp(dataType, "str")) {
@@ -395,7 +396,11 @@ Napi::Value readMemory(const Napi::CallbackInfo& args) {
     std::vector<char> chars;
     int offset = 0x0;
     while (true) {
-      char c = Memory.readChar(handle, address + offset);
+      char c = Memory.readChar(handle, address + offset, &read);
+      if (!read) {
+        break;
+      }
+
       chars.push_back(c);
 
       // break at 1 million chars
@@ -415,12 +420,7 @@ Napi::Value readMemory(const Napi::CallbackInfo& args) {
 
     if (chars.size() == 0) {
 
-      if (args.Length() == 4) errorMessage = "unable to read string (no null-terminator found after 1 million chars)";
-      else
-      {
-        Napi::Error::New(env, "unable to read string (no null-terminator found after 1 million chars)").ThrowAsJavaScriptException();
-        return env.Null();
-      }
+      errorMessage = "unable to read string (no null-terminator found after 1 million chars)";
 
     } else {
       // vector -> string
@@ -431,7 +431,7 @@ Napi::Value readMemory(const Napi::CallbackInfo& args) {
 
   } else if (!strcmp(dataType, "vector3") || !strcmp(dataType, "vec3")) {
 
-    Vector3 result = Memory.readMemory<Vector3>(handle, address);
+    Vector3 result = Memory.readMemory<Vector3>(handle, address, &read);
     Napi::Object moduleInfo = Napi::Object::New(env);
     moduleInfo.Set(Napi::String::New(env, "x"), Napi::Value::From(env, result.x));
     moduleInfo.Set(Napi::String::New(env, "y"), Napi::Value::From(env, result.y));
@@ -440,7 +440,7 @@ Napi::Value readMemory(const Napi::CallbackInfo& args) {
     retVal = moduleInfo;
   } else if (!strcmp(dataType, "vector4") || !strcmp(dataType, "vec4")) {
 
-    Vector4 result = Memory.readMemory<Vector4>(handle, address);
+    Vector4 result = Memory.readMemory<Vector4>(handle, address, &read);
     Napi::Object moduleInfo = Napi::Object::New(env);
     moduleInfo.Set(Napi::String::New(env, "w"), Napi::Value::From(env, result.w));
     moduleInfo.Set(Napi::String::New(env, "x"), Napi::Value::From(env, result.x));
@@ -450,12 +450,12 @@ Napi::Value readMemory(const Napi::CallbackInfo& args) {
     retVal = moduleInfo;
   } else {
 
-    if (args.Length() == 4) errorMessage = "unexpected data type";
-    else
-    {
-      Napi::Error::New(env, "unexpected data type").ThrowAsJavaScriptException();
-      return env.Null();
-    }
+    errorMessage = "unexpected data type";
+  }
+
+  if (!read)
+  {
+    errorMessage = "unable to read memory";
   }
 
   if (args.Length() == 4)
@@ -469,9 +469,20 @@ Napi::Value readMemory(const Napi::CallbackInfo& args) {
   }
   else
   {
-    return retVal;
+    if (errorMessage.empty())
+      return retVal;
+    else
+    {
+      Napi::Error::New(env, errorMessage).ThrowAsJavaScriptException();
+      return env.Null();
+    }
   }
 }
+/*
+void freeBuffer(Napi::Env env, char* p)
+{
+  delete[] p;
+}*/
 
 Napi::Value readBuffer(const Napi::CallbackInfo& args) {
   Napi::Env env = args.Env();
@@ -496,14 +507,36 @@ Napi::Value readBuffer(const Napi::CallbackInfo& args) {
   SIZE_T size = args[2].As<Napi::Number>().Int64Value();
   char* data = Memory.readBuffer(handle, address, size);
 
-  Napi::Buffer<char> buffer = Napi::Buffer<char>::New(env, data, size);
+  Napi::Buffer<char> buffer;
 
-  if (args.Length() == 4) {
+  std::string errorMessage;
+  if (!data)
+    errorMessage = "unable to read memory";
+  else
+  {
+    // buffer = Napi::Buffer<char>::New(env, data, size, freeBuffer); // [bumpmann]: idk why it's not properly freeing memory so i fallback to Copy + delete
+    buffer = Napi::Buffer<char>::Copy(env, data, size);
+    delete[] data;
+  }
+
+  if (args.Length() == 4)
+  {
     Napi::Function callback = args[3].As<Napi::Function>();
-    callback.Call(env.Global(), { Napi::String::New(env, ""), buffer });
+    if (!errorMessage.empty())
+      callback.Call(env.Global(), { Napi::String::New(env, errorMessage) });
+    else
+      callback.Call(env.Global(), { Napi::String::New(env, ""), buffer });
     return env.Null();
-  } else {
-    return buffer;
+  }
+  else
+  {
+    if (errorMessage.empty())
+      return buffer;
+    else
+    {
+      Napi::Error::New(env, errorMessage).ThrowAsJavaScriptException();
+      return env.Null();
+    }
   }
 }
 
@@ -810,7 +843,7 @@ Napi::Value callFunction(const Napi::CallbackInfo& args) {
 
   if (args.Length() == 5) {
     // Callback to let the user handle with the information
-    Napi::Function callback = args[2].As<Napi::Function>();
+    Napi::Function callback = args[4].As<Napi::Function>();
     callback.Call(env.Global(), { Napi::String::New(env, errorMessage), info });
     return env.Null();
   } else {
